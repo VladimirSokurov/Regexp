@@ -3,20 +3,32 @@ import re
 import csv
 from collections import Counter
 
-pattern1 = r'(\w+)(\s\w+)?(\s\w+)?;(\w+)?(\s\w+)?;(\w+)?;(\w+)?;((\w*[–\s]*)*)?;((\+)?(7|8)\s?(\d{3})?(\d{3})?(\d{2})?(\d{2})?(\(\d+\))?\s?[-\s]?(\d*)[-\s]?(\d*)[-\s]?(\d*)\s?(\()?(\w+(\.)?)?\s?(\d+)?(\))?)?;(\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)?'
-pattern2 = r'(\+)?(7|8)\s?(\d{3})?(\d{3})?(\d{2})?(\d{2})?(\((\d+)\))?\s?[-\s]?(\d*)[-\s]?(\d{2})[-\s]?(\d{2})\s?(\()?(\w+(\.)?)?\s?(\d+)?(\))?'
-sub_pattern_1 = r'+7(\8\3)\9\4-\10\5-\11\6 \13\15'
-sub_pattern_2 = r'+7(\8\3)\9\4-\10\5-\11\6'
+pattern0 = r'(\w+)(\s\w+)?(\s\w+)?'
+pattern1 = r'(\w+)?(\s\w+)?'
+pattern2 = r'(\w+)?(\s\w+)?'
+pattern3 = r'(\w+)?'
+pattern4 = r'((\w*[–\s]*)*)?'
+pattern5 = r'((\+)?(7|8)\s?(\d{3})?(\d{3})?(\d{2})?(\d{2})?(\((\d+)\))?\s?[-\s]?(\d*)[-\s]?(\d{2})[-\s]?(\d{2})\s?(\()?(\w+(\.)?)?\s?(\d+)?(\))?)?'
+pattern6 = r'(\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b)?'
+pattern7 = r'(\+)?(7|8)\s?(\d{3})?(\d{3})?(\d{2})?(\d{2})?(\((\d+)\))?\s?[-\s]?(\d*)[-\s]?(\d{2})[-\s]?(\d{2})\s?(\()?(\w+(\.)?)?\s?(\d+)?(\))?'
+sub_pattern_1 = r'+7(\8\3)\9\4-\10-\11 \13\15'
+sub_pattern_2 = r'+7(\8\3)\9\4-\10-\11'
 
 
 def open_phonebook(name):
-    with open(name) as f:
+    with open(name, encoding='utf-8') as f:
         rows = csv.reader(f, delimiter=",")
         contacts_list = list(rows)
     return contacts_list
 
 
-def add_f(dict, key: str, result, group_number):
+contacts_list = open_phonebook('phonebook_raw.csv')
+
+
+def add_f(dict, key: str, group_number, pattern, string_):
+    result = re.search(pattern, string_)
+    text = result.group(0)
+
     if result.group(group_number):
         text = result.group(group_number)
         dict[key] = f'{text.strip()};'
@@ -25,33 +37,30 @@ def add_f(dict, key: str, result, group_number):
 def add_new_contacts_list(contacts_list):
     new_contacts_list = []
     for id, i in enumerate(contacts_list):
+
         if id != 0:
-            new_l = []
             new_dict = {}
-            result = re.search(pattern1, i[0])
-            add_f(new_dict, 'lastname', result, 1)
-            add_f(new_dict, 'firstname', result, 2)
-            add_f(new_dict, 'firstname', result, 4)
-            add_f(new_dict, 'surname', result, 3)
-            add_f(new_dict, 'surname', result, 5)
-            add_f(new_dict, 'surname', result, 6)
-            add_f(new_dict, 'organization', result, 7)
-            add_f(new_dict, 'position', result, 8)
-            add_f(new_dict, 'phone', result, 10)
-            add_f(new_dict, 'email', result, 26)
-            new_l.append(result.group())
+            add_f(new_dict, 'lastname', 1, pattern0, i[0])
+            add_f(new_dict, 'firstname', 2, pattern0, i[0])
+            add_f(new_dict, 'firstname', 1, pattern1, i[1])
+            add_f(new_dict, 'surname', 3, pattern0, i[0])
+            add_f(new_dict, 'surname', 2, pattern1, i[1])
+            add_f(new_dict, 'surname', 0, pattern2, i[2])
+            add_f(new_dict, 'organization', 0, pattern3, i[3])
+            add_f(new_dict, 'position', 0, pattern4, i[4])
+            add_f(new_dict, 'phone', 0, pattern5, i[5])
+            add_f(new_dict, 'email', 0, pattern6, i[6])
             new_contacts_list.append(new_dict)
     return new_contacts_list
 
 
-def change_phone_pattern(new_contacts_list, pattern2, sub_pattern_1, sub_pattern_2):
+def change_phone_pattern(new_contacts_list, pattern7, sub_pattern_1, sub_pattern_2):
     for j in new_contacts_list:
         if j.get('phone'):
-            result2 = re.search(pattern2, j.get('phone'))
             if len(j.get('phone')) > 16:
-                sub_res = re.sub(pattern2, sub_pattern_1, j.get('phone'))
+                sub_res = re.sub(pattern7, sub_pattern_1, j.get('phone'))
             else:
-                sub_res = re.sub(pattern2, sub_pattern_2, j.get('phone'))
+                sub_res = re.sub(pattern7, sub_pattern_2, j.get('phone'))
             j['phone'] = sub_res
     changed_new_contacts_list = new_contacts_list
     return changed_new_contacts_list
@@ -98,9 +107,24 @@ def remove_doubles(counter, updated_new_contacts_list):
     return new_contacts_list_
 
 
+def set_header_list():
+    header_list = []
+    header_string = ""
+    for id, i in enumerate(contacts_list[0]):
+        header_string += i
+        if id != 6:
+            header_string += ";"
+    header_list.append(header_string)
+    return header_list
+
+
+# set_header_list()
+
+
 def set_finish_list(contacts_list, new_contacts_list_):
     finish_list = []
-    finish_list.append(contacts_list[0])
+    header_list = set_header_list()
+    finish_list.append(header_list)
     for i in new_contacts_list_:
         inner_list = [";", ";", ";", ";", ";", ";", ";"]
         joined_inner_list = []
@@ -126,6 +150,7 @@ def set_finish_list(contacts_list, new_contacts_list_):
             if key == "email":
                 inner_list.pop(6)
                 inner_list.insert(6, value)
+
         joined_inner_string = "".join(inner_list)
         joined_inner_list.append(joined_inner_string)
         finish_list.append(joined_inner_list)
@@ -141,7 +166,7 @@ def get_phonebook(new_name):
 if __name__ == "__main__":
     contacts_list = open_phonebook("phonebook_raw.csv")
     new_contacts_list = add_new_contacts_list(contacts_list)
-    changed_new_contacts_list = change_phone_pattern(new_contacts_list, pattern2, sub_pattern_1, sub_pattern_2)
+    changed_new_contacts_list = change_phone_pattern(new_contacts_list, pattern7, sub_pattern_1, sub_pattern_2)
     counter = count_lastnames_dict(changed_new_contacts_list)
     unique_lastnames_list = add_unique_lastnames_list(counter)
     updated_new_contacts_list = update_doubles(new_contacts_list, unique_lastnames_list)
